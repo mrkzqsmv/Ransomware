@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C2 Control Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #clients-list {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Command and Control (C2) Panel</h1>
+
+    <!-- Client List -->
+    <h2>Clients</h2>
+    <button onclick="fetchClients()">Get Clients</button>
+    <pre id="clients-list"></pre>
+
+    <!-- Send Command Form -->
+    <h2>Send Command</h2>
+    <label for="client_id">Client ID:</label>
+    <input type="text" id="client_id" placeholder="Enter client ID"><br><br>
+
+    <label for="command">Command:</label>
+    <input type="text" id="command" placeholder="Enter command to execute"><br><br>
+
+    <button onclick="sendCommand()">Send Command</button>
+
+    <h2>Command Output</h2>
+    <pre id="command-output"></pre>
+
+    <script>
+        const serverUrl = "http://127.0.0.1:8000";  // Backend URL
+
+        // Function to fetch clients
+        async function fetchClients() {
+            const response = await fetch(`${serverUrl}/clients/`);
+            const data = await response.json();
+            document.getElementById('clients-list').innerText = JSON.stringify(data, null, 2);
+        }
+
+        // Function to send a command
+        async function sendCommand() {
+            const clientId = document.getElementById('client_id').value;
+            const command = document.getElementById('command').value;
+
+            if (!clientId || !command) {
+                alert("Please provide both Client ID and Command");
+                return;
+            }
+
+            // Send POST request to backend to send the command
+            const response = await fetch(`${serverUrl}/command/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ client_id: clientId, command: command })
+            });
+
+            if (response.ok) {
+                alert("Command sent successfully!");
+                fetchClients();  // Refresh client list to see the status
+            } else {
+                alert("Failed to send command");
+            }
+        }
+
+        // Function to fetch and display command output
+        async function fetchCommandOutput() {
+            const clientId = document.getElementById('client_id').value;
+            if (!clientId) {
+                alert("Please provide Client ID");
+                return;
+            }
+
+            const response = await fetch(`${serverUrl}/clients/`);
+            const data = await response.json();
+            const client = data[clientId];
+
+            if (client && client.last_response) {
+                document.getElementById('command-output').innerText = client.last_response;
+            } else {
+                document.getElementById('command-output').innerText = "No response yet.";
+            }
+        }
+
+        // Automatically check for command output every 5 seconds
+        setInterval(fetchCommandOutput, 5000);
+    </script>
+</body>
+</html>

